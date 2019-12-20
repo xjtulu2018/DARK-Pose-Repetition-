@@ -230,7 +230,7 @@ class JointsDataset(Dataset):
         logger.info('=> num selected db: {}'.format(len(db_selected)))
         return db_selected
 
-    def generate_target(self, joints, joints_vis):
+    def generate_target(self, joints, joints_vis, heatmap_type='normal'):
         '''
         :param joints:  [num_joints, 3]
         :param joints_vis: [num_joints, 3]
@@ -252,8 +252,13 @@ class JointsDataset(Dataset):
 
             for joint_id in range(self.num_joints):
                 feat_stride = self.image_size / self.heatmap_size
-                mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
-                mu_y = int(joints[joint_id][1] / feat_stride[1] + 0.5)
+                #change for dark
+                mu_x_f = joints[joint_id][0] / feat_stride[0]
+                mu_y_f = joints[joint_id][1] / feat_stride[1]
+                mu_x = int(mu_x_f + 0.5)
+                mu_y = int(mu_y_f + 0.5)
+                offset_x = mu_x_f-mu_x
+                offset_y = mu_y_f-mu_y
                 # Check that any part of the gaussian is in-bounds
                 ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
                 br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
@@ -267,7 +272,9 @@ class JointsDataset(Dataset):
                 size = 2 * tmp_size + 1
                 x = np.arange(0, size, 1, np.float32)
                 y = x[:, np.newaxis]
-                x0 = y0 = size // 2
+                #change for dark
+                x0 = size // 2 if heatmap_type=='normal' else size // 2+offset_x
+                y0 = size // 2 if heatmap_type=='normal' else size // 2+offset_y
                 # The gaussian is not normalized, we want the center value to equal 1
                 g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * self.sigma ** 2))
 
