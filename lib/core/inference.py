@@ -60,20 +60,20 @@ def gaussian_modulation(batch_heatmaps,sigma,gaussian_mode='nearest'):
     width = batch_heatmaps.shape[3]
     heatmaps_reshaped = batch_heatmaps.reshape((batch_size, num_joints, -1))
     maxvals = np.amax(heatmaps_reshaped, 2)
-    print(maxvals)
     maxvals = maxvals.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
     #modulation
     heatmap_modulation=filters.gaussian_filter(batch_heatmaps,sigma,cval=0.0, mode=gaussian_mode,truncate=temp_size)
-    #scale
+    #scale heatmap into 0-maximum value
     heatmaps_modulation_reshaped = heatmap_modulation.reshape((batch_size, num_joints, -1))
-    maxvals_modulation = np.amax(heatmaps_reshaped, 2)
-    minvals_modulation = np.amin(heatmaps_reshaped, 2)
+    maxvals_modulation = np.amax(heatmaps_modulation_reshaped, 2)
+    minvals_modulation = np.amin(heatmaps_modulation_reshaped, 2)
     maxvals_modulation = maxvals_modulation.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
     minvals_modulation = minvals_modulation.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
     dis0=((maxvals_modulation-minvals_modulation)==0)
     dis1=((maxvals_modulation-minvals_modulation)!=0)
     heatmap_modulation = ((heatmap_modulation-minvals_modulation)/(maxvals_modulation-minvals_modulation+1*dis0)-1)\
     *dis1*maxvals+maxvals
+    heatmap_modulation=heatmap_modulation*(heatmap_modulation>=0)
     return heatmap_modulation
     
 
@@ -101,7 +101,6 @@ def get_final_preds(config, batch_heatmaps, center, scale):
                         ]
                     )
                     coords[n][p] += np.sign(diff) * .25
-
     preds = coords.copy()
 
     # Transform back
@@ -114,7 +113,9 @@ def get_final_preds(config, batch_heatmaps, center, scale):
 
 
 def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='nearest'):
-     ''''''
+     '''1.gaussian modulation
+     2.get maximum point 
+     3.cal the accurate value'''
     #gaussian modulation
     sigma=config.MODEL.SIGMA
     batch_heatmaps=gaussian_modulation(batch_heatmaps,sigma, gaussian_mode)
@@ -129,16 +130,25 @@ def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='n
                 hm = batch_heatmaps[n][p]
                 px = int(math.floor(coords[n][p][0] + 0.5))
                 py = int(math.floor(coords[n][p][1] + 0.5))
-                #int（floor(+0.5)?）
                 if 1 < px < heatmap_width-1 and 1 < py < heatmap_height-1:
+                    #derivative_1 sobel
                     derivative_1 = np.array(
                         [
-                            (np.log(hm[py][px+1]) - np.log(hm[py][px-1]))/2,
-                            (np.log(hm[py+1][px])-np.log(hm[py-1][px]))/2
+                            (2*np.log(hm[py][px+1])+np.log(hm[py+1][px+1])+np.log(hm[py-1][px+1])- \
+                             2*np.log(hm[py][px-1])-np.log(hm[py+1][px-1])-np.log(hm[py-1][px-1]))/4,
+                            (2*np.log(hm[py+1][px])+np.log(hm[py+1][px+1])+np.log(hm[py+1][px-1])- \
+                             2*np.log(hm[py-1][px])-np.log(hm[py-1][px+1])-np.log(hm[py-1][px-1]))/4
                         ]
                     )
-                    derivative_2=np.array([sigma,sigma])**2
-                    coords[n][p] += derivative_1*derivative_2
+                    #derivative_2 laplace
+                    derivative_2=np.array(
+                        [
+                            -2*np.log(hm[py][px])+np.log(hm[py][px+1])+np.log(hm[py][px-1]),
+                            -2*np.log(hm[py][px])+np.log(hm[py+1][px])+np.log(hm[py-1][px])
+                        ]
+                    )
+                    print(coords[n][p])
+                    coords[n][p] -= derivative_1/derivative_2
 
     preds = coords.copy()
 
