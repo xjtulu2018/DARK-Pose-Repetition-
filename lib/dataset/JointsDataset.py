@@ -31,7 +31,8 @@ class JointsDataset(Dataset):
         self.pixel_std = 200
         self.flip_pairs = []
         self.parent_ids = []
-
+        
+        self.image_stored=None
         self.is_train = is_train
         self.root = root
         self.image_set = image_set
@@ -55,6 +56,7 @@ class JointsDataset(Dataset):
 
         self.transform = transform
         self.db = []
+        self.encoding=cfg.MODEL.HEATMAP_EN
 
     def _get_db(self):
         raise NotImplementedError
@@ -126,14 +128,29 @@ class JointsDataset(Dataset):
             data_numpy = cv2.imread(
                 image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
             )
+        if data_numpy is None:
+            logger.error('=> fail to read {}'.format(image_file))
+            db_rec=self.image_stored
+            image_file = db_rec['image']
+            filename = db_rec['filename'] if 'filename' in db_rec else ''
+            imgnum = db_rec['imgnum'] if 'imgnum' in db_rec else ''
+            #raise ValueError('Fail to read {}'.format(image_file))
+            if self.data_format == 'zip':
+                from utils import zipreader
+                data_numpy = zipreader.imread(
+                    image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
+                )
+            else:
+                data_numpy = cv2.imread(
+                    image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION
+                )
+            print('change image')
+            
 
         if self.color_rgb:
             data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
-
-        if data_numpy is None:
-            logger.error('=> fail to read {}'.format(image_file))
-            raise ValueError('Fail to read {}'.format(image_file))
-
+        self.image_stored=db_rec
+        
         joints = db_rec['joints_3d']
         joints_vis = db_rec['joints_3d_vis']
 
@@ -230,7 +247,7 @@ class JointsDataset(Dataset):
         logger.info('=> num selected db: {}'.format(len(db_selected)))
         return db_selected
 
-    def generate_target(self, joints, joints_vis, heatmap_type='normal'):
+    def generate_target(self, joints, joints_vis):
         '''
         :param joints:  [num_joints, 3]
         :param joints_vis: [num_joints, 3]
@@ -273,8 +290,8 @@ class JointsDataset(Dataset):
                 x = np.arange(0, size, 1, np.float32)
                 y = x[:, np.newaxis]
                 #change for dark
-                x0 = size // 2 if heatmap_type=='normal' else size // 2+offset_x
-                y0 = size // 2 if heatmap_type=='normal' else size // 2+offset_y
+                x0 = size // 2 if not self.encoding else size // 2+offset_x
+                y0 = size // 2 if not self.encoding else size // 2+offset_y
                 # The gaussian is not normalized, we want the center value to equal 1
                 g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * self.sigma ** 2))
 
