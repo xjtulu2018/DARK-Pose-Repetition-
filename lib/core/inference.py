@@ -49,10 +49,15 @@ def get_max_preds(batch_heatmaps):
     preds *= pred_mask
     return preds, maxvals
 
-def gaussian_modulation(batch_heatmaps,sigma,gaussian_mode='nearest'):
+
+def gaussian_modulation_torch(batch_heatmaps, sug):
+    pass
+
+
+def gaussian_modulation(batch_heatmaps, sigma, gaussian_mode='nearest'):
     '''modulate pred_heatmap with gaussian filter:
     kernal size:sigma*6+1, default mode: ‘nearest’ '''
-    temp_size=sigma*3
+    temp_size = sigma*3
     #cal maxinum of heatmap
     batch_size = batch_heatmaps.shape[0]
     num_joints = batch_heatmaps.shape[1]
@@ -62,20 +67,20 @@ def gaussian_modulation(batch_heatmaps,sigma,gaussian_mode='nearest'):
     maxvals = np.amax(heatmaps_reshaped, 2)
     maxvals = maxvals.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
     #modulation
-    heatmap_modulation=filters.gaussian_filter(batch_heatmaps,sigma,cval=0.0, mode=gaussian_mode,truncate=temp_size)
+    heatmap_modulation=filters.gaussian_filter(batch_heatmaps, sigma, cval=0.0, mode=gaussian_mode, truncate=temp_size)
     #scale heatmap into 0-maximum value
     heatmaps_modulation_reshaped = heatmap_modulation.reshape((batch_size, num_joints, -1))
     maxvals_modulation = np.amax(heatmaps_modulation_reshaped, 2)
     minvals_modulation = np.amin(heatmaps_modulation_reshaped, 2)
     maxvals_modulation = maxvals_modulation.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
     minvals_modulation = minvals_modulation.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
-    dis0=((maxvals_modulation-minvals_modulation)==0)
-    dis1=((maxvals_modulation-minvals_modulation)!=0)
+    dis0 = ((maxvals_modulation-minvals_modulation)==0)
+    dis1 = ((maxvals_modulation-minvals_modulation)!=0)
     heatmap_modulation = ((heatmap_modulation-minvals_modulation)/(maxvals_modulation-minvals_modulation+1*dis0)-1)\
     *dis1*maxvals+maxvals
     heatmap_modulation=heatmap_modulation*(heatmap_modulation>=0)
     return heatmap_modulation
-    
+
 
 def get_final_preds(config, batch_heatmaps, center, scale):
     coords, maxvals = get_max_preds(batch_heatmaps)
@@ -114,7 +119,7 @@ def get_final_preds(config, batch_heatmaps, center, scale):
 
 def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='nearest'):
      '''1.gaussian modulation
-     2.get maximum point 
+     2.get maximum point
      3.cal the accurate value'''
     #gaussian modulation
     sigma=config.MODEL.SIGMA
