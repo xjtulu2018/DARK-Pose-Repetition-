@@ -177,6 +177,7 @@ def get_final_preds(config, batch_heatmaps, center, scale, gaussian_mode='consta
     return preds, maxvals
 
 
+<<<<<<< HEAD
 def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='nearest'):
     '''1.gaussian modulation
     2.get maximum point
@@ -241,3 +242,5 @@ def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='n
 #     output_show = output.numpy()
 #     ax[1].imshow(output_show[0, 0])
 #     plt.show()
+=======
+>>>>>>> 4b3f6b6fe6c599fcbb8b673548218addc48d8471

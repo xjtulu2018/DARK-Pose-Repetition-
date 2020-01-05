@@ -15,12 +15,12 @@ import os
 import numpy as np
 import torch
 
-from scipy.ndimage import filters
 from core.evaluate import accuracy
 from core.inference import get_final_preds
-from core.inference import get_final_preds_DARK
+from core.inference import gaussian_modulation
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
+from utils.vis import save_batch_heatmaps_arrays
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,11 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
+<<<<<<< HEAD
 
+=======
+    sigma = config.MODEL.SIGMA
+>>>>>>> 4b3f6b6fe6c599fcbb8b673548218addc48d8471
     # switch to train mode
     model.train()
 
@@ -93,6 +97,11 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             save_debug_images(config, input, meta, target, pred*4, output,
                               prefix)
+            output_DM = gaussian_modulation(\
+                    output.clone().detach().cpu().numpy(),sigma, 'constant')
+            save_batch_heatmaps_arrays(output.clone().detach().cpu().numpy(), prefix, "origin")
+            save_batch_heatmaps_arrays(output_DM, prefix, "DM")
+            print('heatmap_array saved')
 
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
@@ -100,7 +109,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-
+    sigma = config.MODEL.SIGMA
     # switch to evaluate mode
     model.eval()
 
@@ -197,7 +206,13 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 )
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
-
+                output_DM = gaussian_modulation(output.clone().cpu().numpy(),\
+                                              sigma, 'constant')
+                save_batch_heatmaps_arrays(output.clone().cpu().numpy(),\
+                                           prefix, "origin")
+                save_batch_heatmaps_arrays(output_DM, prefix, "DM")
+                print('heatmap_array saved')
+                
         name_values, perf_indicator = val_dataset.evaluate(
             config, all_preds, output_dir, all_boxes, image_path,
             filenames, imgnums
