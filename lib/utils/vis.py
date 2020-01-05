@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import print_function
 
 import math
-
+import pickle
 import numpy as np
 import torchvision
 import cv2
@@ -114,6 +114,15 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name,
         grid_image[height_begin:height_end, 0:heatmap_width, :] = resized_image
 
     cv2.imwrite(file_name, grid_image)
+    
+def save_batch_heatmaps_arrays(batch_heatmaps, prefix, suffix):
+    '''
+    save ndarrays to '{}_heatmap_{}.pkl'.format(prefix, suffix)
+    '''
+    file_name='{}_heatmap_{}.pkl'.format(prefix, suffix)
+    with open(file_name, 'wb') as file:
+        pickle.dump(batch_heatmaps, file)
+
 
 
 def save_debug_images(config, input, meta, target, joints_pred, output,
