@@ -12,6 +12,7 @@ from scipy.ndimage import filters
 import math
 
 import numpy as np
+import torch
 
 from utils.transforms import transform_preds
 '''code for DARK
@@ -50,8 +51,40 @@ def get_max_preds(batch_heatmaps):
     return preds, maxvals
 
 
-def gaussian_modulation_torch(batch_heatmaps, sug):
-    pass
+def gaussian_modulation_torch(batch_heatmaps, sigma, eps=1e-8):
+    batch_size = batch_heatmaps.shape[0]
+    num_joints = batch_heatmaps.shape[1]
+    height = batch_heatmaps.shape[2]
+    width = batch_heatmaps.shape[3]
+    device = batch_heatmaps.device
+    dtype = batch_heatmaps.dtype
+    temp_size = sigma * 3
+    size = 2 * temp_size + 1
+
+    x = torch.arange(0, size, 1, dtype=dtype, requires_grad=False).to(device)
+    y = x[:, None]
+    x0 = size // 2
+    y0 = size // 2
+
+    heatmaps_reshaped = batch_heatmaps.view(batch_size, num_joints, -1)
+    heatmaps_max = heatmaps_reshaped.max(2)[0][..., None, None]
+
+    g = torch.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * sigma ** 2))
+    g = g.unsqueeze(0).unsqueeze(0).expand(num_joints, -1, -1, -1)
+    assert (size + 1) % 2 == 0, 'only support odd kernel size now'
+    padding = int((size - 1) / 2)
+
+    with torch.no_grad():
+        heatmaps_modulation = torch.nn.functional.conv2d(batch_heatmaps, g, padding=padding, groups=num_joints)
+        heatmaps_modulation_reshaped = heatmaps_modulation.view(batch_size, num_joints, -1)
+        heatmaps_modulation_max = heatmaps_modulation_reshaped.max(2)[0][..., None, None]
+        heatmaps_modulation_min = heatmaps_modulation_reshaped.min(2)[0][..., None, None]
+
+        heatmaps_modulation = (heatmaps_modulation-heatmaps_modulation_min) / (heatmaps_modulation_max-heatmaps_modulation_min+eps) * heatmaps_max
+        heatmaps_modulation[heatmaps_modulation < 0] = 0
+
+    return heatmaps_modulation
+
 
 
 def gaussian_modulation(batch_heatmaps, sigma, gaussian_mode='nearest'):
@@ -72,18 +105,19 @@ def gaussian_modulation(batch_heatmaps, sigma, gaussian_mode='nearest'):
     heatmaps_modulation_reshaped = heatmap_modulation.reshape((batch_size, num_joints, -1))
     maxvals_modulation = np.amax(heatmaps_modulation_reshaped, 2)
     minvals_modulation = np.amin(heatmaps_modulation_reshaped, 2)
-    maxvals_modulation = maxvals_modulation.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
-    minvals_modulation = minvals_modulation.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
+    maxvals_modulation = maxvals_modulation.reshape((batch_size, num_joints, 1, 1))  # *np.ones([1,1,height,width])
+    minvals_modulation = minvals_modulation.reshape((batch_size, num_joints, 1, 1))  # *np.ones([1,1,height,width])
     dis0 = ((maxvals_modulation-minvals_modulation)==0)
     dis1 = ((maxvals_modulation-minvals_modulation)!=0)
-    heatmap_modulation = ((heatmap_modulation-minvals_modulation)/(maxvals_modulation-minvals_modulation+1*dis0)-1)\
+    heatmap_modulation = ((heatmap_modulation-minvals_modulation)/(maxvals_modulation-minvals_modulation+1*dis0)-1) \
     *dis1*maxvals+maxvals
+
     heatmap_modulation=heatmap_modulation*(heatmap_modulation>=0)
     return heatmap_modulation
 
 
 def get_final_preds(config, batch_heatmaps, center, scale, gaussian_mode='constant'):
-    
+
     '''return the pred point with and the value of the maximum values
     the pred point is calculated as：（x,y）=（x_max,y_max）+\
     0.25×（sign（value（x_max+1,y_max）-value（x_max-1,y_max）,value（x_max,y_max+1）-value（x_max-1,y_max-1）））'''
@@ -131,7 +165,7 @@ def get_final_preds(config, batch_heatmaps, center, scale, gaussian_mode='consta
                             ]
                         )
                         coords[n][p] += np.sign(diff) * .25
-                    
+
     preds = coords.copy()
 
     # Transform back
@@ -144,15 +178,11 @@ def get_final_preds(config, batch_heatmaps, center, scale, gaussian_mode='consta
 
 
 def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='nearest'):
-<<<<<<< HEAD
-     '''1.gaussian modulation
-     2.get maximum point
-=======
     '''1.gaussian modulation
-     2.get maximum point 
->>>>>>> 649dc6c63c396286409c384180edc6ac15048a62
-     3.cal the accurate value'''
-    #gaussian modulation
+    2.get maximum point
+    3.cal the accurate value'''
+
+    # gaussian modulation
     sigma=config.MODEL.SIGMA
     #batch_heatmaps=gaussian_modulation(batch_heatmaps,sigma, gaussian_mode)
     coords, maxvals = get_max_preds(batch_heatmaps)
@@ -197,3 +227,17 @@ def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='n
         )
 
     return preds, maxvals
+
+
+# if __name__ == '__main__':
+#     import sys
+#     import matplotlib.pyplot as plt
+#     sys.path.append('../')
+#     batch_heatmaps = torch.randn(4, 19, 56, 56)
+#     batch_heatmaps_show = batch_heatmaps.numpy()
+#     fig, ax = plt.subplots(1, 2)
+#     ax[0].imshow(batch_heatmaps_show[0, 0])
+#     output = gaussian_modulation_torch(batch_heatmaps, 3)
+#     output_show = output.numpy()
+#     ax[1].imshow(output_show[0, 0])
+#     plt.show()

@@ -7,7 +7,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
- 
+
 import time
 import logging
 import os
@@ -32,7 +32,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-    
+
     # switch to train mode
     model.train()
 
@@ -40,7 +40,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-        
+
         # compute output
         outputs = model(input)
         target = target.cuda(non_blocking=True)
