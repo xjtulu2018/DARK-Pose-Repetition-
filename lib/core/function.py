@@ -17,10 +17,11 @@ import torch
 
 from core.evaluate import accuracy
 from core.inference import get_final_preds
-from core.inference import gaussian_modulation
+from core.inference import gaussian_modulation_torch
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
 from utils.vis import save_batch_heatmaps_arrays
+
 
 
 logger = logging.getLogger(__name__)
@@ -32,11 +33,6 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-<<<<<<< HEAD
-
-=======
-    sigma = config.MODEL.SIGMA
->>>>>>> 4b3f6b6fe6c599fcbb8b673548218addc48d8471
     # switch to train mode
     model.train()
 
@@ -97,10 +93,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             save_debug_images(config, input, meta, target, pred*4, output,
                               prefix)
-            output_DM = gaussian_modulation(\
-                    output.clone().detach().cpu().numpy(),sigma, 'constant')
             save_batch_heatmaps_arrays(output.clone().detach().cpu().numpy(), prefix, "origin")
-            save_batch_heatmaps_arrays(output_DM, prefix, "DM")
             print('heatmap_array saved')
 
 
@@ -111,6 +104,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     acc = AverageMeter()
     sigma = config.MODEL.SIGMA
     # switch to evaluate mode
+    DM=config.MODEL.HEATMAP_DE_DM
     model.eval()
 
     num_samples = len(val_dataset)
@@ -169,7 +163,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                                              target.cpu().numpy())
 
             acc.update(avg_acc, cnt)
-
+            
             # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
@@ -177,10 +171,11 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             c = meta['center'].numpy()
             s = meta['scale'].numpy()
             score = meta['score'].numpy()
-
+            output_DM=gaussian_modulation_torch(output, sigma)
             preds, maxvals = get_final_preds(
-                config, output.clone().cpu().numpy(), c, s)
-
+                config, output.clone().cpu().numpy(), c, s,
+                output_DM.clone().cpu().numpy())
+            
             all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
             all_preds[idx:idx + num_images, :, 2:3] = maxvals
             # double check this all_boxes parts
@@ -206,11 +201,10 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 )
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
-                output_DM = gaussian_modulation(output.clone().cpu().numpy(),\
-                                              sigma, 'constant')
-                save_batch_heatmaps_arrays(output.clone().cpu().numpy(),\
+                save_batch_heatmaps_arrays(output.clone().cpu().numpy(),
                                            prefix, "origin")
-                save_batch_heatmaps_arrays(output_DM, prefix, "DM")
+                if DM:
+                    save_batch_heatmaps_arrays(output_DM, prefix, "DM")
                 print('heatmap_array saved')
                 
         name_values, perf_indicator = val_dataset.evaluate(
