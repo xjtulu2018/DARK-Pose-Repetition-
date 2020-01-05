@@ -33,7 +33,8 @@ def create_logger(cfg, cfg_name, phase='train'):
     cfg_name = os.path.basename(cfg_name).split('.')[0]
 
     final_output_dir = root_output_dir / dataset / model / cfg_name
-
+    #print(final_output_dir)
+    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       print('confirm')
     print('=> creating {}'.format(final_output_dir))
     final_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -44,6 +45,7 @@ def create_logger(cfg, cfg_name, phase='train'):
     logging.basicConfig(filename=str(final_log_file),
                         format=head)
     logger = logging.getLogger()
+    
     logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     logging.getLogger('').addHandler(console)

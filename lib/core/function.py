@@ -15,8 +15,10 @@ import os
 import numpy as np
 import torch
 
+from scipy.ndimage import filters
 from core.evaluate import accuracy
 from core.inference import get_final_preds
+from core.inference import get_final_preds_DARK
 from utils.transforms import flip_back
 from utils.vis import save_debug_images
 
@@ -30,7 +32,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-
+    
     # switch to train mode
     model.train()
 
@@ -38,10 +40,9 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     for i, (input, target, target_weight, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-
+        
         # compute output
         outputs = model(input)
-
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
 
