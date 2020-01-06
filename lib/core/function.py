@@ -32,11 +32,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
     data_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
-<<<<<<< HEAD
-
-=======
     sigma = config.MODEL.SIGMA
->>>>>>> 4b3f6b6fe6c599fcbb8b673548218addc48d8471
     # switch to train mode
     model.train()
 
