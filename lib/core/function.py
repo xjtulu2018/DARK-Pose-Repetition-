@@ -93,8 +93,8 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             save_debug_images(config, input, meta, target, pred*4, output,
                               prefix)
-            save_batch_heatmaps_arrays(output.clone().detach().cpu().numpy(), prefix, "origin")
-            print('heatmap_array saved')
+            # save_batch_heatmaps_arrays(output.clone().detach().cpu().numpy(), prefix, "origin")
+            # print('heatmap_array saved')
 
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
@@ -203,9 +203,9 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                                   prefix)
                 save_batch_heatmaps_arrays(output.clone().cpu().numpy(),
                                            prefix, "origin")
-                if DM:
-                    save_batch_heatmaps_arrays(output_DM, prefix, "DM")
-                print('heatmap_array saved')
+                # if DM:
+                #     save_batch_heatmaps_arrays(output_DM, prefix, "DM")
+                # print('heatmap_array saved')
 
         name_values, perf_indicator = val_dataset.evaluate(
             config, all_preds, output_dir, all_boxes, image_path,
