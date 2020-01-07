@@ -27,7 +27,7 @@ from utils.vis import save_batch_heatmaps_arrays
 logger = logging.getLogger(__name__)
 
 
-def train(config, train_loader, model, criterion, optimizer, epoch,
+def train(config, train_loader, model, criterion, optimizer, lr_scheduler, epoch,
           output_dir, tb_log_dir, writer_dict):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -60,6 +60,8 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if torch.__version__ >= '1.1.0':
+            lr_scheduler.step()
 
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))

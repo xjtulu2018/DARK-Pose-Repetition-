@@ -180,10 +180,11 @@ def main():
     )
 
     for epoch in range(begin_epoch, cfg.TRAIN.END_EPOCH):
-        lr_scheduler.step()
+        if torch.__version__ < '1.1.0':
+            lr_scheduler.step()
 
         # train for one epoch
-        train(cfg, train_loader, model, criterion, optimizer, epoch,
+        train(cfg, train_loader, model, criterion, optimizer, lr_scheduler, epoch,
               final_output_dir, tb_log_dir, writer_dict)
 
 
