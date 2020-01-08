@@ -139,7 +139,6 @@ def get_final_preds(config, batch_heatmaps, center, scale, batch_heatmaps_DM=Non
                 #int（floor(+0.5)?）
                 if 1 < px < heatmap_width-1 and 1 < py < heatmap_height-1:
                     if DE:
-                        #derivative_1 sobel
                         derivative_1 = np.array(
                             [
                                 (2*np.log(hm[py][px+1])+np.log(hm[py+1][px+1])+np.log(hm[py-1][px+1])- \
@@ -151,8 +150,8 @@ def get_final_preds(config, batch_heatmaps, center, scale, batch_heatmaps_DM=Non
                         #derivative_2 laplace
                         derivative_2=np.array(
                             [
-                                -2*np.log(hm[py][px])+np.log(hm[py][px+1])+np.log(hm[py][px-1]),
-                                -2*np.log(hm[py][px])+np.log(hm[py+1][px])+np.log(hm[py-1][px])
+                                -1/(sigma*2),
+                                -1/(sigma*2)
                             ]
                         )
                         coords[n][p] -= derivative_1/derivative_2

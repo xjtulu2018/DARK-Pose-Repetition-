@@ -35,6 +35,9 @@ MODEL:
   - 48
   - 64
   SIGMA: 2
+  HEATMAP_EN: true
+  HEATMAP_DE: false
+  HEATMAP_DE_DM: false
   EXTRA:
     PRETRAINED_LAYERS:
     - 'conv1'
