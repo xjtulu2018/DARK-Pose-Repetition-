@@ -1,3 +1,9 @@
+# demo
+demo/
+
+# checkpoint files
+*.pth
+
 # IntelliJ project files
 .idea
 *.iml
@@ -92,4 +98,3 @@ external/
 
 draws/
 plot/
-

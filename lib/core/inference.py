@@ -19,6 +19,7 @@ from utils.transforms import transform_preds
 
 '''
 
+
 def get_max_preds(batch_heatmaps):
     '''
     get predictions from score maps
@@ -86,72 +87,47 @@ def gaussian_modulation_torch(batch_heatmaps, sigma, eps=1e-8):
     return heatmaps_modulation
 
 
-
-def gaussian_modulation(batch_heatmaps, sigma, gaussian_mode='nearest'):
-    '''modulate pred_heatmap with gaussian filter:
-    kernal size:sigma*6+1, default mode: ‘nearest’ '''
-    temp_size = sigma*3
-    #cal maxinum of heatmap
-    batch_size = batch_heatmaps.shape[0]
-    num_joints = batch_heatmaps.shape[1]
-    height = batch_heatmaps.shape[2]
-    width = batch_heatmaps.shape[3]
-    heatmaps_reshaped = batch_heatmaps.reshape((batch_size, num_joints, -1))
-    maxvals = np.amax(heatmaps_reshaped, 2)
-    maxvals = maxvals.reshape((batch_size, num_joints, 1, 1))*np.ones([1,1,height,width])
-    #modulation
-    heatmap_modulation=filters.gaussian_filter(batch_heatmaps, sigma, cval=0.0, mode=gaussian_mode, truncate=temp_size)
-    #scale heatmap into 0-maximum value
-    heatmaps_modulation_reshaped = heatmap_modulation.reshape((batch_size, num_joints, -1))
-    maxvals_modulation = np.amax(heatmaps_modulation_reshaped, 2)
-    minvals_modulation = np.amin(heatmaps_modulation_reshaped, 2)
-    maxvals_modulation = maxvals_modulation.reshape((batch_size, num_joints, 1, 1))  # *np.ones([1,1,height,width])
-    minvals_modulation = minvals_modulation.reshape((batch_size, num_joints, 1, 1))  # *np.ones([1,1,height,width])
-    dis0 = ((maxvals_modulation-minvals_modulation)==0)
-    dis1 = ((maxvals_modulation-minvals_modulation)!=0)
-    heatmap_modulation = ((heatmap_modulation-minvals_modulation)/(maxvals_modulation-minvals_modulation+1*dis0)-1) \
-    *dis1*maxvals+maxvals
-
-    heatmap_modulation=heatmap_modulation*(heatmap_modulation>=0)
-    return heatmap_modulation
-
-
-def get_final_preds(config, batch_heatmaps, center, scale, batch_heatmaps_DM=None):
-
+def get_final_preds(config, batch_heatmaps, center, scale,
+                    batch_heatmaps_DM=None):
     '''return the pred point with and the value of the maximum values
     the pred point is calculated as：（x,y）=（x_max,y_max）+\
-    0.25×（sign（value（x_max+1,y_max）-value（x_max-1,y_max）,value（x_max,y_max+1）-value（x_max-1,y_max-1）））'''
-    sigma=config.MODEL.SIGMA
-    DE=config.MODEL.HEATMAP_DE
-    DM=config.MODEL.HEATMAP_DE_DM
+    0.25×（sign（value（x_max+1,y_max）-value（x_max-1,y_max）,
+    value（x_max,y_max+1）-value（x_max-1,y_max-1）））'''
+    sigma = config.MODEL.SIGMA
+    DE = config.MODEL.HEATMAP_DE
+    DM = config.MODEL.HEATMAP_DE_DM
     coords, maxvals = get_max_preds(batch_heatmaps)
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
     # post-processing
     if DM:
-        batch_heatmaps=batch_heatmaps_DM
+        batch_heatmaps = batch_heatmaps_DM
     if config.TEST.POST_PROCESS:
         for n in range(coords.shape[0]):
             for p in range(coords.shape[1]):
                 hm = batch_heatmaps[n][p]
                 px = int(math.floor(coords[n][p][0] + 0.5))
                 py = int(math.floor(coords[n][p][1] + 0.5))
-                #int（floor(+0.5)?）
+                # int（floor(+0.5)?）
                 if 1 < px < heatmap_width-1 and 1 < py < heatmap_height-1:
                     if DE:
                         derivative_1 = np.array(
                             [
-                                (2*np.log(hm[py][px+1])+np.log(hm[py+1][px+1])+np.log(hm[py-1][px+1])- \
-                                 2*np.log(hm[py][px-1])-np.log(hm[py+1][px-1])-np.log(hm[py-1][px-1]))/4,
-                                (2*np.log(hm[py+1][px])+np.log(hm[py+1][px+1])+np.log(hm[py+1][px-1])- \
-                                 2*np.log(hm[py-1][px])-np.log(hm[py-1][px+1])-np.log(hm[py-1][px-1]))/4
+                                (2*np.log(hm[py][px+1])+np.log(hm[py+1][px+1])
+                                 + np.log(hm[py-1][px+1]) -
+                                 2*np.log(hm[py][px-1])-np.log(hm[py+1][px-1])
+                                 - np.log(hm[py-1][px-1]))/4,
+                                (2*np.log(hm[py+1][px])+np.log(hm[py+1][px+1])
+                                 + np.log(hm[py+1][px-1]) -
+                                 2*np.log(hm[py-1][px])-np.log(hm[py-1][px+1])
+                                 - np.log(hm[py-1][px-1]))/4
                             ]
                         )
-                        #derivative_2 laplace
-                        derivative_2=np.array(
+                        # derivative_2 laplace
+                        derivative_2 = np.array(
                             [
-                                -1/(sigma*2),
-                                -1/(sigma*2)
+                                -1/(sigma**2),
+                                -1/(sigma**2)
                             ]
                         )
                         coords[n][p] -= derivative_1/derivative_2
@@ -174,57 +150,63 @@ def get_final_preds(config, batch_heatmaps, center, scale, batch_heatmaps_DM=Non
 
     return preds, maxvals
 
-def get_final_preds_DARK(config, batch_heatmaps, center, scale, gaussian_mode='nearest'):
-    '''1.gaussian modulation
-    2.get maximum point
-    3.cal the accurate value'''
 
-    # gaussian modulation
-    sigma=config.MODEL.SIGMA
-    #batch_heatmaps=gaussian_modulation(batch_heatmaps,sigma, gaussian_mode)
+def demo_preds_function(config, batch_heatmaps, batch_heatmaps_DM=None):
+
+    '''return the pred point with and the value of the maximum values
+    the pred point is calculated as：（x,y）=（x_max,y_max）+\
+    0.25×（sign（value（x_max+1,y_max）-value（x_max-1,y_max）,value（x_max,y_max+1）
+    -value（x_max-1,y_max-1）））'''
+    sigma = config.MODEL.SIGMA
+    DE = config.MODEL.HEATMAP_DE
+    DM = config.MODEL.HEATMAP_DE_DM
     coords, maxvals = get_max_preds(batch_heatmaps)
-    batch_heatmaps=(batch_heatmaps>0.0)*batch_heatmaps
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
-    batch_heatmaps=batch_heatmaps+0.000001
-    #coords, maxvals = get_max_preds(batch_heatmaps)
     # post-processing
+    if DM:
+        batch_heatmaps = batch_heatmaps_DM
     if config.TEST.POST_PROCESS:
         for n in range(coords.shape[0]):
             for p in range(coords.shape[1]):
                 hm = batch_heatmaps[n][p]
                 px = int(math.floor(coords[n][p][0] + 0.5))
                 py = int(math.floor(coords[n][p][1] + 0.5))
+                # int（floor(+0.5)?）
                 if 1 < px < heatmap_width-1 and 1 < py < heatmap_height-1:
-                    #derivative_1 sobel
-                    derivative_1 = np.array(
-                        [
-                            (2*np.log(hm[py][px+1])+np.log(hm[py+1][px+1])+np.log(hm[py-1][px+1])- \
-                             2*np.log(hm[py][px-1])-np.log(hm[py+1][px-1])-np.log(hm[py-1][px-1]))/4,
-                            (2*np.log(hm[py+1][px])+np.log(hm[py+1][px+1])+np.log(hm[py+1][px-1])- \
-                             2*np.log(hm[py-1][px])-np.log(hm[py-1][px+1])-np.log(hm[py-1][px-1]))/4
-                        ]
-                    )
-                    #derivative_2 laplace
-                    derivative_2=np.array(
-                        [
-                            -2*np.log(hm[py][px])+np.log(hm[py][px+1])+np.log(hm[py][px-1]),
-                            -2*np.log(hm[py][px])+np.log(hm[py+1][px])+np.log(hm[py-1][px])
-                        ]
-                    )
-                    #print(coords[n][p])
-                    coords[n][p] -= derivative_1/derivative_2
+                    if DE:
+                        derivative_1 = np.array(
+                            [
+                                (2*np.log(hm[py][px+1])+np.log(hm[py+1][px+1])
+                                 + np.log(hm[py-1][px+1]) -
+                                 2*np.log(hm[py][px-1])-np.log(hm[py+1][px-1])
+                                 - np.log(hm[py-1][px-1]))/4,
+                                (2*np.log(hm[py+1][px])+np.log(hm[py+1][px+1])
+                                 + np.log(hm[py+1][px-1]) -
+                                 2*np.log(hm[py-1][px])-np.log(hm[py-1][px+1])
+                                 - np.log(hm[py-1][px-1]))/4
+                            ]
+                        )
+                        # derivative_2 laplace
+                        derivative_2 = np.array(
+                            [
+                                -1/(sigma**2),
+                                -1/(sigma**2)
+                            ]
+                        )
+                        coords[n][p] -= derivative_1/derivative_2
+                    else:
+                        diff = np.array(
+                            [
+                                hm[py][px+1] - hm[py][px-1],
+                                hm[py+1][px]-hm[py-1][px]
+                            ]
+                        )
+                        coords[n][p] += np.sign(diff) * .25
 
     preds = coords.copy()
 
-    # Transform back
-    for i in range(coords.shape[0]):
-        preds[i] = transform_preds(
-            coords[i], center[i], scale[i], [heatmap_width, heatmap_height]
-        )
-
     return preds, maxvals
-
 
 # if __name__ == '__main__':
 #     import sys
