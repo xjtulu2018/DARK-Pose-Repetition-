@@ -31,6 +31,7 @@ def train(config, train_loader, model, criterion, optimizer, lr_scheduler, epoch
           output_dir, tb_log_dir, writer_dict):
     batch_time = AverageMeter()
     data_time = AverageMeter()
+    losses = AverageMeter()
     acc = AverageMeter()
     # switch to train mode
     model.train()
