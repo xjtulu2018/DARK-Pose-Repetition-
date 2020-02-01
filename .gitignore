@@ -98,3 +98,5 @@ external/
 
 draws/
 plot/
+
+*.out
